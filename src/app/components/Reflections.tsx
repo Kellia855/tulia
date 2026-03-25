@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BookOpen, Plus, Search, Calendar, Trash2, Edit2, Bookmark, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 interface Entry {
-  id: string;
+  id: number;
   date: string;
   title: string;
   content: string;
@@ -12,51 +13,230 @@ interface Entry {
   tags: string[];
 }
 
-const mockEntries: Entry[] = [
-  {
-    id: '1',
-    date: 'Jan 28, 2026',
-    title: 'Morning Clarity',
-    content: 'Felt very focused this morning after a short meditation. The world felt a bit quieter than usual.',
-    mood: 'Peaceful',
-    tags: ['Meditation', 'Focus']
-  },
-  {
-    id: '2',
-    date: 'Jan 26, 2026',
-    title: 'Tough Meeting',
-    content: 'The client meeting didn\'t go as planned. I felt defensive at first, but managed to take some deep breaths and listen.',
-    mood: 'Stress',
-    tags: ['Work', 'Growth']
+interface ReflectionResponse {
+  id: number;
+  title: string;
+  content: string;
+  mood: string;
+  tags: string[] | null;
+  created_at: string;
+}
+
+const AUTH_TOKEN_KEY = 'auth_token';
+const envApiUrl = (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_API_URL;
+const API_BASE_URL = envApiUrl || 'http://localhost:8001/api';
+
+const toEntry = (reflection: ReflectionResponse): Entry => ({
+  id: reflection.id,
+  date: new Date(reflection.created_at).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }),
+  title: reflection.title,
+  content: reflection.content,
+  mood: reflection.mood,
+  tags: reflection.tags || [],
+});
+
+const parseApiError = async (response: Response) => {
+  try {
+    const data = await response.json();
+    if (typeof data?.detail === 'string') {
+      return data.detail;
+    }
+  } catch {
+    return null;
   }
-];
+  return null;
+};
+
+const apiRequest = async <T,>(path: string, options: RequestInit = {}, token?: string): Promise<T> => {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
+  });
+
+  if (!response.ok) {
+    const apiMessage = await parseApiError(response);
+    throw new Error(apiMessage || 'Request failed. Please try again.');
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json() as Promise<T>;
+};
 
 export const Reflections: React.FC = () => {
-  const [entries, setEntries] = useState<Entry[]>(mockEntries);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [isLoadingEntries, setIsLoadingEntries] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
   const [newEntry, setNewEntry] = useState({ title: '', content: '', mood: 'Calm' });
   const [searchQuery, setSearchQuery] = useState('');
 
-  const handleSave = () => {
+  const resetEditor = () => {
+    setIsAdding(false);
+    setEditingEntryId(null);
+    setNewEntry({ title: '', content: '', mood: 'Calm' });
+  };
+
+  useEffect(() => {
+    const loadReflections = async () => {
+      const token = localStorage.getItem(AUTH_TOKEN_KEY);
+      if (!token) {
+        setIsLoadingEntries(false);
+        return;
+      }
+
+      try {
+        const reflections = await apiRequest<ReflectionResponse[]>('/reflections', { method: 'GET' }, token);
+        setEntries(reflections.map(toEntry));
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to load reflections');
+      } finally {
+        setIsLoadingEntries(false);
+      }
+    };
+
+    loadReflections();
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const word = params.get('word')?.trim();
+    const definition = params.get('definition')?.trim();
+    const category = params.get('category')?.trim();
+    const reflectionPrompt = params.get('reflection_prompt')?.trim();
+    const bodyPrompt = params.get('body_prompt')?.trim();
+    const needPrompt = params.get('need_prompt')?.trim();
+    const copingAction = params.get('coping_action')?.trim();
+
+    if (!word) {
+      return;
+    }
+
+    const moodByCategory: Record<string, string> = {
+      Joyful: 'Grateful',
+      Peaceful: 'Calm',
+      Powerful: 'Grateful',
+      Sad: 'Confused',
+      Fearful: 'Stressed',
+      Angry: 'Stressed',
+    };
+
+    setEditingEntryId(null);
+    setNewEntry({
+      title: `Reflecting on ${word}`,
+      content: [
+        `I notice I feel ${word.toLowerCase()} today.${definition ? ` ${definition}` : ''}`,
+        '',
+        'What happened?',
+        'I noticed this feeling when... ',
+        '',
+        bodyPrompt || 'What did you feel in your body?',
+        'I felt... ',
+        '',
+        needPrompt || 'What did you need in that moment?',
+        'I needed... ',
+        '',
+        reflectionPrompt || 'What is one helpful step you can take next?',
+        'One next step is... ',
+        '',
+        copingAction ? `Suggested coping action: ${copingAction}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      mood: moodByCategory[category || ''] || 'Calm',
+    });
+    setIsAdding(true);
+
+    navigate('/reflections', { replace: true });
+  }, [location.search, navigate]);
+
+  const handleSave = async () => {
     if (!newEntry.title || !newEntry.content) {
       toast.error('Please fill in both title and content');
       return;
     }
-    const entry: Entry = {
-      id: Date.now().toString(),
-      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      ...newEntry,
-      tags: []
-    };
-    setEntries([entry, ...entries]);
-    setIsAdding(false);
-    setNewEntry({ title: '', content: '', mood: 'Calm' });
-    toast.success('Reflection saved.');
+
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (!token) {
+      toast.error('Please sign in again to save reflections.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      if (editingEntryId !== null) {
+        const updatedReflection = await apiRequest<ReflectionResponse>(
+          `/reflections/${editingEntryId}`,
+          {
+            method: 'PUT',
+            body: JSON.stringify({ ...newEntry }),
+          },
+          token
+        );
+
+        setEntries((current) =>
+          current.map((entry) => (entry.id === editingEntryId ? toEntry(updatedReflection) : entry))
+        );
+        toast.success('Reflection updated.');
+      } else {
+        const savedReflection = await apiRequest<ReflectionResponse>(
+          '/reflections',
+          {
+            method: 'POST',
+            body: JSON.stringify({ ...newEntry, tags: [] }),
+          },
+          token
+        );
+
+        setEntries((current) => [toEntry(savedReflection), ...current]);
+        toast.success('Reflection saved.');
+      }
+
+      resetEditor();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save reflection');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const deleteEntry = (id: string) => {
-    setEntries(entries.filter(e => e.id !== id));
-    toast.success('Entry deleted');
+  const startEditing = (entry: Entry) => {
+    setEditingEntryId(entry.id);
+    setNewEntry({
+      title: entry.title,
+      content: entry.content,
+      mood: entry.mood,
+    });
+    setIsAdding(true);
+  };
+
+  const deleteEntry = async (id: number) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (!token) {
+      toast.error('Please sign in again to delete reflections.');
+      return;
+    }
+
+    try {
+      await apiRequest<void>(`/reflections/${id}`, { method: 'DELETE' }, token);
+      setEntries((current) => current.filter((entry) => entry.id !== id));
+      toast.success('Entry deleted');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete reflection');
+    }
   };
 
   const filteredEntries = entries.filter(e => 
@@ -72,7 +252,11 @@ export const Reflections: React.FC = () => {
           <p className="text-gray-500 dark:text-gray-400 mt-2">A safe space for your thoughts, feelings, and growth.</p>
         </div>
         <button 
-          onClick={() => setIsAdding(true)}
+          onClick={() => {
+            setEditingEntryId(null);
+            setNewEntry({ title: '', content: '', mood: 'Calm' });
+            setIsAdding(true);
+          }}
           className="flex items-center gap-2 px-6 py-3 bg-teal-600 text-white font-bold rounded-2xl hover:bg-teal-700 transition-all shadow-lg shadow-teal-100"
         >
           <Plus size={20} /> New Reflection
@@ -101,8 +285,10 @@ export const Reflections: React.FC = () => {
             className="bg-white dark:bg-gray-800 p-8 rounded-[32px] border border-teal-100 dark:border-teal-900/30 shadow-xl shadow-teal-50/50 dark:shadow-none"
           >
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Write something...</h3>
-              <button onClick={() => setIsAdding(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">Cancel</button>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                {editingEntryId !== null ? 'Edit reflection' : 'Write something...'}
+              </h3>
+              <button onClick={resetEditor} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">Cancel</button>
             </div>
             <div className="space-y-4">
               <input
@@ -132,10 +318,12 @@ export const Reflections: React.FC = () => {
               />
               <div className="flex justify-end pt-4 border-t border-gray-50 dark:border-gray-700">
                 <button 
+                  type="button"
                   onClick={handleSave}
+                  disabled={isSaving}
                   className="px-8 py-3 bg-teal-600 text-white font-bold rounded-2xl hover:bg-teal-700 transition-all shadow-lg shadow-teal-100"
                 >
-                  Save Entry
+                  {isSaving ? 'Saving...' : editingEntryId !== null ? 'Update Entry' : 'Save Entry'}
                 </button>
               </div>
             </div>
@@ -162,11 +350,16 @@ export const Reflections: React.FC = () => {
                   <Bookmark size={14} /> {entry.mood}
                 </div>
               </div>
-              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button className="p-2 text-gray-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/30 rounded-xl transition-all">
+              <div className="relative z-10 flex items-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                <button
+                  type="button"
+                  onClick={() => startEditing(entry)}
+                  className="p-2 text-gray-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/30 rounded-xl transition-all"
+                >
                   <Edit2 size={18} />
                 </button>
                 <button 
+                  type="button"
                   onClick={() => deleteEntry(entry.id)}
                   className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all"
                 >
@@ -191,7 +384,7 @@ export const Reflections: React.FC = () => {
               </div>
             </div>
             
-            <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
+            <div className="pointer-events-none absolute top-0 right-0 w-32 h-32 bg-teal-500/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
           </motion.div>
         ))}
 

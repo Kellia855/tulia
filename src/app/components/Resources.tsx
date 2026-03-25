@@ -29,10 +29,43 @@ const helplines = [
 ];
 
 const externalResources = [
-  { title: 'Psychology Today', url: 'https://www.psychologytoday.com', desc: 'Find therapists, teletherapy, and mental health information.' },
+  { title: 'Psychology Today', url: 'https://www.psychologytoday.com', desc: 'Find therapists, teletherapy and mental health information.' },
   { title: 'Mindfulness.org', url: 'https://www.mindful.org', desc: 'Practical tools and insights for mindfulness and meditation.' },
   { title: 'Headspace', url: 'https://www.headspace.com', desc: 'Meditation and sleep made simple.' },
   { title: 'Calm', url: 'https://www.calm.com', desc: 'App for Sleep, Meditation and Relaxation.' },
+];
+
+const supportGroups = [
+  {
+    name: 'The Circle Kigali',
+    url: 'https://thecirclekigali.com/',
+    focus: 'Mental wellness community and support in Rwanda',
+    format: 'In-person and community programs',
+  },
+  {
+    name: 'NAMI Support Groups',
+    url: 'https://www.nami.org/support-education/support-groups/',
+    focus: 'Mental health peer and family support',
+    format: 'In-person and online',
+  },
+  {
+    name: 'DBSA Support Groups',
+    url: 'https://www.dbsalliance.org/support/chapters-and-support-groups/',
+    focus: 'Depression and bipolar support',
+    format: 'In-person and online',
+  },
+  {
+    name: 'The Trevor Project Peer Support',
+    url: 'https://www.thetrevorproject.org/get-help/',
+    focus: 'LGBTQ+ youth crisis and peer support',
+    format: 'Chat, text, and phone',
+  },
+  {
+    name: '7 Cups',
+    url: 'https://www.7cups.com/',
+    focus: 'Emotional support chats and communities',
+    format: 'Online community',
+  },
 ];
 
 export const Resources: React.FC = () => {
@@ -110,8 +143,8 @@ export const Resources: React.FC = () => {
               <LifeBuoy size={24} className="text-teal-500" /> Support Communities
             </h3>
             <div className="bg-teal-50 dark:bg-teal-900/20 p-8 rounded-3xl border border-teal-100 dark:border-teal-900/30">
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-white dark:bg-gray-800 rounded-2xl text-teal-600 dark:text-teal-400 shadow-sm">
+              <div className="flex items-start gap-4 mb-6">
+                <div className="p-3 bg-white dark:bg-gray-800 rounded-2xl text-teal-600 dark:text-teal-400 shadow-sm shrink-0">
                   <MessageSquare size={24} />
                 </div>
                 <div>
@@ -119,10 +152,26 @@ export const Resources: React.FC = () => {
                   <p className="text-teal-800/60 dark:text-teal-400/60 text-sm mt-1 leading-relaxed">
                     Connecting with others who share similar experiences can be incredibly healing. Peer support groups provide a safe space to share and learn.
                   </p>
-                  <button className="mt-4 px-6 py-2 bg-white dark:bg-gray-800 text-teal-700 dark:text-teal-400 font-bold rounded-xl text-sm hover:bg-teal-100 dark:hover:bg-gray-700 transition-colors border border-teal-200 dark:border-teal-800">
-                    Find groups near you
-                  </button>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {supportGroups.map((group) => (
+                  <a
+                    key={group.name}
+                    href={group.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-white dark:bg-gray-800 border border-teal-100 dark:border-teal-900/30 rounded-2xl p-5 hover:border-teal-300 dark:hover:border-teal-700 hover:shadow-md transition-all group"
+                  >
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <h5 className="font-bold text-gray-900 dark:text-gray-100 leading-snug">{group.name}</h5>
+                      <ExternalLink size={16} className="text-gray-300 dark:text-gray-600 group-hover:text-teal-500 shrink-0" />
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{group.focus}</p>
+                    <p className="text-xs text-teal-700 dark:text-teal-400 font-semibold mt-3">{group.format}</p>
+                  </a>
+                ))}
               </div>
             </div>
           </section>

@@ -1,29 +1,179 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 import { TrendingUp, Smile, CloudRain, Zap, Heart, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-const moodData = [
-  { day: 'Mon', mood: 3, energy: 4 },
-  { day: 'Tue', mood: 4, energy: 3 },
-  { day: 'Wed', mood: 2, energy: 2 },
-  { day: 'Thu', mood: 5, energy: 5 },
-  { day: 'Fri', mood: 4, energy: 4 },
-  { day: 'Sat', mood: 5, energy: 3 },
-  { day: 'Sun', mood: 4, energy: 2 },
-];
+interface CheckIn {
+  id: number;
+  mood: number;
+  energy: number;
+  emotions: string[];
+  created_at: string;
+}
 
-const emotionDistribution = [
-  { name: 'Joy', count: 12, color: '#FACC15' },
-  { name: 'Calm', count: 18, color: '#2DD4BF' },
-  { name: 'Anxiety', count: 5, color: '#A78BFA' },
-  { name: 'Sadness', count: 3, color: '#60A5FA' },
-  { name: 'Anger', count: 2, color: '#F87171' },
-];
+interface MoodDataPoint {
+  day: string;
+  mood: number;
+  energy: number;
+}
+
+interface EmotionData {
+  name: string;
+  count: number;
+  color: string;
+}
+
+const EMOTION_COLORS: Record<string, string> = {
+  'Joy': '#FACC15',
+  'Calm': '#2DD4BF',
+  'Anxiety': '#A78BFA',
+  'Sadness': '#60A5FA',
+  'Anger': '#F87171',
+  'Fear': '#FB923C',
+  'Confusion': '#06B6D4',
+  'Contentment': '#10B981',
+};
+
+const envApiUrl = (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_API_URL;
+const API_BASE_URL = envApiUrl || 'http://localhost:8001/api';
+const AUTH_TOKEN_KEY = 'auth_token';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const [moodData, setMoodData] = useState<MoodDataPoint[]>([]);
+  const [emotionDistribution, setEmotionDistribution] = useState<EmotionData[]>([]);
+  const [averageMood, setAverageMood] = useState<string>('--');
+  const [checkInCount, setCheckInCount] = useState<number>(0);
+  const [primaryEmotion, setPrimaryEmotion] = useState<string>('--');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCheckInData = async () => {
+      const token = localStorage.getItem(AUTH_TOKEN_KEY);
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/checkins/`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch check-ins');
+        }
+
+        const checkIns: CheckIn[] = await response.json();
+        
+        // Process check-in data
+        processCheckInData(checkIns);
+      } catch (error) {
+        console.error('Error fetching check-ins:', error);
+        // Keep default empty state on error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCheckInData();
+  }, []);
+
+  const processCheckInData = (checkIns: CheckIn[]) => {
+    // Get last 7 days
+    const last7Days = getLast7Days();
+    
+    // Group check-ins by day
+    const dataByDay = new Map<string, { moods: number[]; energies: number[] }>();
+    checkIns.forEach((checkin) => {
+      const date = new Date(checkin.created_at);
+      const dayKey = getDayKey(date);
+      
+      if (!dataByDay.has(dayKey)) {
+        dataByDay.set(dayKey, { moods: [], energies: [] });
+      }
+      
+      const dayData = dataByDay.get(dayKey)!;
+      dayData.moods.push(checkin.mood);
+      dayData.energies.push(checkin.energy);
+    });
+
+    // Build mood trend data for last 7 days
+    const moodTrend = last7Days.map((dayObj) => {
+      const data = dataByDay.get(dayObj.key);
+      const mood = data ? Math.round(data.moods.reduce((a, b) => a + b, 0) / data.moods.length) : 0;
+      const energy = data ? Math.round(data.energies.reduce((a, b) => a + b, 0) / data.energies.length) : 0;
+      
+      return {
+        day: dayObj.label,
+        mood,
+        energy,
+      };
+    });
+
+    setMoodData(moodTrend);
+    setCheckInCount(checkIns.length);
+
+    // Calculate average mood
+    if (checkIns.length > 0) {
+      const avgMood = checkIns.reduce((sum, c) => sum + c.mood, 0) / checkIns.length;
+      setAverageMood(getMoodLabel(avgMood));
+    }
+
+    // Calculate emotion distribution
+    const emotionCount = new Map<string, number>();
+    checkIns.forEach((checkin) => {
+      checkin.emotions.forEach((emotion) => {
+        emotionCount.set(emotion, (emotionCount.get(emotion) || 0) + 1);
+      });
+    });
+
+    // Convert to array and sort by count
+    const emotions = Array.from(emotionCount.entries())
+      .map(([name, count]) => ({
+        name,
+        count,
+        color: EMOTION_COLORS[name] || '#64748B',
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    setEmotionDistribution(emotions);
+    
+    if (emotions.length > 0) {
+      setPrimaryEmotion(emotions[0].name);
+    }
+  };
+
+  const getLast7Days = () => {
+    const days = [];
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      days.push({
+        key: getDayKey(date),
+        label: dayLabels[date.getDay()],
+      });
+    }
+    
+    return days;
+  };
+
+  const getDayKey = (date: Date) => {
+    return date.toISOString().split('T')[0];
+  };
+
+  const getMoodLabel = (mood: number) => {
+    if (mood >= 4.5) return 'Excellent';
+    if (mood >= 3.5) return 'Great';
+    if (mood >= 2.5) return 'Okay';
+    if (mood >= 1.5) return 'Low';
+    return 'Poor';
+  };
   
   return (
     <div className="space-y-8">
@@ -42,7 +192,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Average Mood</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">Great</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{loading ? '--' : averageMood}</p>
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4">
@@ -51,7 +201,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Weekly Check-ins</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">24 entries</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{loading ? '--' : `${checkInCount} entries`}</p>
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4">
@@ -60,7 +210,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Primary Emotion</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">Calm</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{loading ? '--' : primaryEmotion}</p>
           </div>
         </div>
       </div>

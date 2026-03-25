@@ -39,13 +39,68 @@ export const CheckIn: React.FC = () => {
     emotions: [] as string[],
   });
   const [isFinished, setIsFinished] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleNext = () => {
+  const AUTH_TOKEN_KEY = 'auth_token';
+  const envApiUrl = (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_API_URL;
+  const API_BASE_URL = envApiUrl || 'http://localhost:8001/api';
+
+  const parseApiError = async (response: Response) => {
+    try {
+      const payload = await response.json();
+      if (typeof payload?.detail === 'string') {
+        return payload.detail;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  };
+
+  const saveCheckIn = async () => {
+    if (data.mood === null) {
+      throw new Error('Please select a mood before continuing.');
+    }
+
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (!token) {
+      throw new Error('Please sign in again to save your check-in.');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/checkins/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        mood: data.mood,
+        energy: data.energy,
+        emotions: data.emotions,
+        notes: null,
+      }),
+    });
+
+    if (!response.ok) {
+      const apiMessage = await parseApiError(response);
+      throw new Error(apiMessage || 'Failed to save check-in. Please try again.');
+    }
+  };
+
+  const handleNext = async () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      setIsFinished(true);
-      toast.success('Check-in saved! Good job checking in with yourself.');
+      setIsSubmitting(true);
+      try {
+        await saveCheckIn();
+        setIsFinished(true);
+        toast.success('Check-in saved! Good job checking in with yourself.');
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to save check-in.');
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -212,15 +267,15 @@ export const CheckIn: React.FC = () => {
         </button>
         <button
           onClick={handleNext}
-          disabled={currentStep === 0 && data.mood === null}
+          disabled={(currentStep === 0 && data.mood === null) || isSubmitting}
           className={`
             flex items-center gap-2 px-8 py-3 rounded-2xl font-bold shadow-lg transition-all
-            ${currentStep === 0 && data.mood === null 
+            ${(currentStep === 0 && data.mood === null) || isSubmitting
               ? 'bg-gray-200 text-gray-400 pointer-events-none shadow-none' 
               : 'bg-teal-600 text-white hover:bg-teal-700 shadow-teal-100'}
           `}
         >
-          {currentStep === steps.length - 1 ? 'Finish' : 'Next'} <ChevronRight size={20} />
+          {currentStep === steps.length - 1 ? (isSubmitting ? 'Saving...' : 'Finish') : 'Next'} <ChevronRight size={20} />
         </button>
       </div>
     </div>

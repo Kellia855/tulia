@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from typing import List, Optional
 
@@ -6,8 +6,47 @@ from typing import List, Optional
 class UserBase(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
 
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, value: str) -> str:
+        username = value.strip()
+        if len(username) < 3:
+            raise ValueError("Username must be at least 3 characters long")
+        if not username.replace("_", "").isalnum():
+            raise ValueError("Username can only contain letters, numbers, and underscores")
+        return username
+
 class UserCreate(UserBase):
     password: str = Field(..., min_length=6)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        password = value.strip()
+        if len(password) < 6:
+            raise ValueError("Password must be at least 6 characters long")
+        return password
+
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+    @field_validator("username")
+    @classmethod
+    def validate_login_username(cls, value: str) -> str:
+        username = value.strip()
+        if not username:
+            raise ValueError("Username is required")
+        return username
+
+    @field_validator("password")
+    @classmethod
+    def validate_login_password(cls, value: str) -> str:
+        password = value.strip()
+        if not password:
+            raise ValueError("Password is required")
+        return password
 
 class UserResponse(UserBase):
     id: int
@@ -19,6 +58,10 @@ class UserResponse(UserBase):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+
+class AuthResponse(Token):
+    user: UserResponse
 
 class TokenData(BaseModel):
     username: Optional[str] = None

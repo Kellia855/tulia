@@ -18,7 +18,8 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-this")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
@@ -45,16 +46,17 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 
 def get_user_by_username(db: Session, username: str):
-    """Get user by username"""
-    return db.query(User).filter(User.username == username).first()
+   
+    normalized_username = username.strip()
+    return db.query(User).filter(User.username == normalized_username).first()
 
 
 def authenticate_user(db: Session, username: str, password: str):
-    """Authenticate a user"""
+ 
     user = get_user_by_username(db, username)
     if not user:
         return False
-    if not verify_password(password, user.hashed_password):
+    if not verify_password(password.strip(), user.hashed_password):
         return False
     return user
 
@@ -63,7 +65,7 @@ async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ) -> User:
-    """Get the current authenticated user"""
+   
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",

@@ -72,7 +72,6 @@ export const Register: React.FC = () => {
             <Heart className="text-white" size={32} />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Join Tulia</h1>
-          <p className="text-gray-500 dark:text-gray-400">Create your anonymous, safe account</p>
         </div>
 
         {/* Registration Form */}
@@ -183,14 +182,7 @@ export const Register: React.FC = () => {
         {/* Privacy Notice */}
         <div className="mt-6 bg-teal-50 dark:bg-teal-900/20 border border-teal-100 dark:border-teal-900/30 rounded-2xl p-4">
           <div className="flex items-start gap-3">
-            <CheckCircle size={20} className="text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-teal-800 dark:text-teal-400">
-              <p className="font-semibold mb-1">100% Anonymous & Private</p>
-              <ul className="space-y-1 text-xs">
-                <li>✓ No email required</li>
-                <li>✓ Your data stays private</li>
-                <li>✓ No judgment, just support</li>
-              </ul>
+            <div className="text-sm text-teal-800 dark:text-teal-400"> 
             </div>
           </div>
         </div>

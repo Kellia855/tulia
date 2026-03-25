@@ -4,12 +4,12 @@ from dotenv import load_dotenv
 import os
 
 from app.database import engine, Base
-from app.routes import auth, checkins, reflections
+from app.routes import auth, checkins, reflections, vocab
 
-# Load environment variables
+
 load_dotenv()
 
-# Create database tables
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -22,6 +22,7 @@ app = FastAPI(
 origins = [
     os.getenv("FRONTEND_URL", "http://localhost:5173"),
     "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 
 app.add_middleware(
@@ -32,10 +33,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
+
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(checkins.router, prefix="/api/checkins", tags=["Check-ins"])
 app.include_router(reflections.router, prefix="/api/reflections", tags=["Reflections"])
+app.include_router(vocab.router, prefix="/api/vocab", tags=["Vocabulary"])
 
 @app.get("/")
 def read_root():

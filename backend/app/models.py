@@ -11,7 +11,7 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    # Relationships
+
     checkins = relationship("CheckIn", back_populates="user", cascade="all, delete-orphan")
     reflections = relationship("Reflection", back_populates="user", cascade="all, delete-orphan")
 
@@ -27,7 +27,7 @@ class CheckIn(Base):
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    # Relationships
+    
     user = relationship("User", back_populates="checkins")
 
 
@@ -43,5 +43,5 @@ class Reflection(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationships
+    
     user = relationship("User", back_populates="reflections")
