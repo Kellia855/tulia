@@ -50,7 +50,7 @@ def get_checkin(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get a specific check-in"""
+    
     checkin = db.query(CheckIn).filter(
         CheckIn.id == checkin_id,
         CheckIn.user_id == current_user.id
@@ -70,7 +70,7 @@ def delete_checkin(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Delete a check-in"""
+    
     checkin = db.query(CheckIn).filter(
         CheckIn.id == checkin_id,
         CheckIn.user_id == current_user.id

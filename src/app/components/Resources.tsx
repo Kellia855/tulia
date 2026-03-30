@@ -1,74 +1,94 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Phone, ExternalLink, Globe, LifeBuoy, Heart, AlertCircle, MessageSquare } from 'lucide-react';
 
-const helplines = [
-  { 
-    name: 'Crisis Text Line', 
-    action: 'Text HOME to 741741', 
-    desc: 'Free, 24/7 crisis counseling in the US & Canada.',
-    type: 'Crisis'
-  },
-  { 
-    name: 'National Suicide Prevention Lifeline', 
-    action: 'Call 988', 
-    desc: 'Support for people in distress, prevention and crisis resources.',
-    type: 'Crisis'
-  },
-  { 
-    name: 'The Trevor Project', 
-    action: 'Call 1-866-488-7386', 
-    desc: 'Crisis intervention and suicide prevention for LGBTQ youth.',
-    type: 'Targeted'
-  },
-  { 
-    name: 'NAMI HelpLine', 
-    action: 'Call 1-800-950-NAMI', 
-    desc: 'Information, resource referrals and support for people living with a mental health condition.',
-    type: 'Information'
-  },
-];
+const envApiUrl = (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_API_URL;
+const API_BASE_URL = envApiUrl || 'http://localhost:8001/api';
 
-const externalResources = [
-  { title: 'Psychology Today', url: 'https://www.psychologytoday.com', desc: 'Find therapists, teletherapy and mental health information.' },
-  { title: 'Mindfulness.org', url: 'https://www.mindful.org', desc: 'Practical tools and insights for mindfulness and meditation.' },
-  { title: 'Headspace', url: 'https://www.headspace.com', desc: 'Meditation and sleep made simple.' },
-  { title: 'Calm', url: 'https://www.calm.com', desc: 'App for Sleep, Meditation and Relaxation.' },
-];
+interface Helpline {
+  id: number;
+  name: string;
+  action: string;
+  description: string;
+  resource_type: string;
+  countries: string[];
+  available_24_7: string | null;
+}
 
-const supportGroups = [
-  {
-    name: 'The Circle Kigali',
-    url: 'https://thecirclekigali.com/',
-    focus: 'Mental wellness community and support in Rwanda',
-    format: 'In-person and community programs',
-  },
-  {
-    name: 'NAMI Support Groups',
-    url: 'https://www.nami.org/support-education/support-groups/',
-    focus: 'Mental health peer and family support',
-    format: 'In-person and online',
-  },
-  {
-    name: 'DBSA Support Groups',
-    url: 'https://www.dbsalliance.org/support/chapters-and-support-groups/',
-    focus: 'Depression and bipolar support',
-    format: 'In-person and online',
-  },
-  {
-    name: 'The Trevor Project Peer Support',
-    url: 'https://www.thetrevorproject.org/get-help/',
-    focus: 'LGBTQ+ youth crisis and peer support',
-    format: 'Chat, text, and phone',
-  },
-  {
-    name: '7 Cups',
-    url: 'https://www.7cups.com/',
-    focus: 'Emotional support chats and communities',
-    format: 'Online community',
-  },
-];
+interface DigitalResource {
+  id: number;
+  title: string;
+  url: string;
+  description: string;
+  accessibility: string[];
+  relevant_regions: string[];
+}
+
+interface SupportGroup {
+  id: number;
+  name: string;
+  url: string | null;
+  focus: string;
+  format: string;
+  countries: string[];
+  language: string[];
+}
 
 export const Resources: React.FC = () => {
+  const [helplines, setHelplines] = useState<Helpline[]>([]);
+  const [externalResources, setExternalResources] = useState<DigitalResource[]>([]);
+  const [supportGroups, setSupportGroups] = useState<SupportGroup[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const loadResources = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        console.log('Loading resources from:', API_BASE_URL);
+        
+       
+        const helplinesResponse = await fetch(`${API_BASE_URL}/resources/helplines`);
+        console.log('Helplines response status:', helplinesResponse.status);
+        if (helplinesResponse.ok) {
+          const data = await helplinesResponse.json();
+          console.log('Helplines data:', data);
+          setHelplines(data);
+        } else {
+          console.error('Failed to load helplines:', helplinesResponse.status);
+        }
+
+     
+        const digitalResponse = await fetch(`${API_BASE_URL}/resources/digital-resources`);
+        console.log('Digital resources response status:', digitalResponse.status);
+        if (digitalResponse.ok) {
+          const data = await digitalResponse.json();
+          console.log('Digital resources data:', data);
+          setExternalResources(data);
+        } else {
+          console.error('Failed to load digital resources:', digitalResponse.status);
+        }
+
+      
+        const groupsResponse = await fetch(`${API_BASE_URL}/resources/support-groups`);
+        console.log('Support groups response status:', groupsResponse.status);
+        if (groupsResponse.ok) {
+          const data = await groupsResponse.json();
+          console.log('Support groups data:', data);
+          setSupportGroups(data);
+        } else {
+          console.error('Failed to load support groups:', groupsResponse.status);
+        }
+      } catch (err) {
+        console.error('Error loading resources:', err);
+        setError('Could not load resources. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadResources();
+  }, []);
   return (
     <div className="space-y-12 pb-20">
       <header>
@@ -86,7 +106,6 @@ export const Resources: React.FC = () => {
           </div>
           <div>
             <h3 className="text-xl font-bold text-red-900 dark:text-red-400">Need immediate help?</h3>
-            <p className="text-red-700/70 dark:text-red-400/70 text-sm font-medium">If you are in danger, please contact your local emergency services.</p>
           </div>
         </div>
 
@@ -94,13 +113,14 @@ export const Resources: React.FC = () => {
           {helplines.map((line) => (
             <div key={line.name} className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-red-100 dark:border-red-900/30 group hover:shadow-md transition-all">
               <div className="flex justify-between items-start mb-4">
-                <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md ${line.type === 'Crisis' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'}`}>
-                  {line.type}
+                <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md ${line.resource_type === 'Crisis' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'}`}>
+                  {line.resource_type}
                 </span>
                 <Phone size={18} className="text-red-400 group-hover:scale-110 transition-transform" />
               </div>
               <h4 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-1">{line.name}</h4>
-              <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">{line.desc}</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mb-2">{line.description}</p>
+              {line.available_24_7 && <p className="text-gray-400 dark:text-gray-500 text-xs mb-4">Available: {line.available_24_7}</p>}
               <div className="inline-block px-4 py-2 bg-red-600 text-white font-bold rounded-xl text-sm group-hover:bg-red-700 transition-colors">
                 {line.action}
               </div>
@@ -130,7 +150,14 @@ export const Resources: React.FC = () => {
                       <h4 className="font-bold text-gray-900 dark:text-gray-100">{res.title}</h4>
                       <ExternalLink size={16} className="text-gray-300 dark:text-gray-600 group-hover:text-teal-500" />
                     </div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{res.desc}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{res.description}</p>
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {res.accessibility.map((item) => (
+                        <span key={item} className="text-xs bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 px-2 py-1 rounded">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                   <span className="text-xs text-teal-600 dark:text-teal-400 font-semibold mt-4">Visit Website</span>
                 </a>
@@ -162,14 +189,28 @@ export const Resources: React.FC = () => {
                     href={group.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="bg-white dark:bg-gray-800 border border-teal-100 dark:border-teal-900/30 rounded-2xl p-5 hover:border-teal-300 dark:hover:border-teal-700 hover:shadow-md transition-all group"
+                    className="bg-white dark:bg-gray-800 border border-teal-100 dark:border-teal-900/30 rounded-2xl p-5 hover:border-teal-300 dark:hover:border-teal-700 hover:shadow-md transition-all group flex flex-col justify-between"
                   >
-                    <div className="flex items-center justify-between gap-3 mb-2">
-                      <h5 className="font-bold text-gray-900 dark:text-gray-100 leading-snug">{group.name}</h5>
-                      <ExternalLink size={16} className="text-gray-300 dark:text-gray-600 group-hover:text-teal-500 shrink-0" />
+                    <div>
+                      <div className="flex items-center justify-between gap-3 mb-2">
+                        <h5 className="font-bold text-gray-900 dark:text-gray-100 leading-snug">{group.name}</h5>
+                        <ExternalLink size={16} className="text-gray-300 dark:text-gray-600 group-hover:text-teal-500 shrink-0" />
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{group.focus}</p>
+                      <div className="flex flex-wrap gap-2">
+                        <span className="text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-2 py-1 rounded">
+                          {group.format}
+                        </span>
+                        {Array.isArray(group.language) && group.language.map((lang) => (
+                          <span key={lang} className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-1 rounded">
+                            {lang}
+                          </span>
+                        ))}
+                      </div>
+                      {Array.isArray(group.countries) && group.countries.length > 0 && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">Active in: {group.countries.join(", ")}</p>
+                      )}
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{group.focus}</p>
-                    <p className="text-xs text-teal-700 dark:text-teal-400 font-semibold mt-3">{group.format}</p>
                   </a>
                 ))}
               </div>
@@ -183,23 +224,8 @@ export const Resources: React.FC = () => {
             <Heart size={32} className="text-teal-500 mb-4" />
             <h4 className="font-bold text-lg mb-2 text-gray-900 dark:text-gray-100">Self-Care Reminder</h4>
             <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed mb-6">
-              Seeking help is a sign of strength, not weakness. You are worthy of support, care, and a fulfilling life.
+              Seeking help is a sign of strength, not weakness. You are worthy of support, care and a fulfilling life.
             </p>
-            <ul className="space-y-3">
-              {['Drink water', 'Take 5 deep breaths', 'Step outside', 'Call a friend'].map(item => (
-                <li key={item} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 font-medium">
-                  <div className="w-1.5 h-1.5 rounded-full bg-teal-400" /> {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="bg-orange-50 dark:bg-orange-900/20 p-8 rounded-3xl border border-orange-100 dark:border-orange-900/30">
-            <h4 className="font-bold text-orange-900 dark:text-orange-400 mb-2">Feedback & Suggestions</h4>
-            <p className="text-orange-800/60 dark:text-orange-400/60 text-sm mb-4">
-              Know of a resource that should be here? Let us know.
-            </p>
-            <button className="text-orange-700 dark:text-orange-400 font-bold text-sm hover:underline">Contact Support Team</button>
           </div>
         </div>
       </div>

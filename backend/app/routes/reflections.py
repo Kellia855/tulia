@@ -16,7 +16,7 @@ def create_reflection(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Create a new reflection"""
+    
     new_reflection = Reflection(
         user_id=current_user.id,
         title=reflection.title,
@@ -37,7 +37,7 @@ def get_reflections(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get all reflections for the current user"""
+    
     reflections = db.query(Reflection).filter(
         Reflection.user_id == current_user.id
     ).order_by(Reflection.created_at.desc()).offset(skip).limit(limit).all()
@@ -50,7 +50,7 @@ def get_reflection(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get a specific reflection"""
+    
     reflection = db.query(Reflection).filter(
         Reflection.id == reflection_id,
         Reflection.user_id == current_user.id
@@ -71,7 +71,7 @@ def update_reflection(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Update a reflection"""
+    
     reflection = db.query(Reflection).filter(
         Reflection.id == reflection_id,
         Reflection.user_id == current_user.id
@@ -83,7 +83,7 @@ def update_reflection(
             detail="Reflection not found"
         )
     
-    # Update fields
+    
     if reflection_update.title is not None:
         reflection.title = reflection_update.title
     if reflection_update.content is not None:
@@ -104,7 +104,7 @@ def delete_reflection(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Delete a reflection"""
+    
     reflection = db.query(Reflection).filter(
         Reflection.id == reflection_id,
         Reflection.user_id == current_user.id

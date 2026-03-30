@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Smile, Frown, Meh, Angry, Wind, Zap, Heart, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
@@ -45,6 +45,7 @@ export const CheckIn: React.FC = () => {
   const envApiUrl = (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_API_URL;
   const API_BASE_URL = envApiUrl || 'http://localhost:8001/api';
 
+  
   const parseApiError = async (response: Response) => {
     try {
       const payload = await response.json();

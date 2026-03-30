@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Info, Book, Heart, Zap, Shield, Sparkles, Wind, CheckCircle2, AlertCircle, Lightbulb, Flame, BookOpen, Brain, Target } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 interface Category {
   name: string;
@@ -138,115 +139,20 @@ const LEARNING_GUIDES: Record<string, LearningGuide> = {
   },
 };
 
-const DISCRIMINATION_EXERCISES: DiscriminationExercise[] = [
-  {
-    leftEmotion: 'Anxious',
-    rightEmotion: 'Excited',
-    keyDifference: 'Both feel high energy. Anxiety predicts threat; excitement predicts opportunity.',
-    quickCheck: 'Ask: “Am I expecting danger, or possibility?”',
-  },
-  {
-    leftEmotion: 'Lonely',
-    rightEmotion: 'Rejected',
-    keyDifference: 'Lonely is absence of connection. Rejected adds a sense of personal exclusion or not being wanted.',
-    quickCheck: 'Ask: “Do I need more connection, or am I processing a specific exclusion?”',
-  },
-  {
-    leftEmotion: 'Overwhelmed',
-    rightEmotion: 'Burned out',
-    keyDifference: 'Overwhelmed is acute overload right now. Burned out is chronic depletion over time.',
-    quickCheck: 'Ask: “Is this a temporary spike, or have I felt drained for weeks?”',
-  },
-];
 
-const QUIZ_SCENARIOS: QuizScenario[] = [
-  {
-    id: 'deadline-1',
-    title: 'Night Before Deadline',
-    situation:
-      'You have two assignments due tomorrow. Your heart is racing and your thoughts keep jumping to worst-case outcomes.',
-    options: ['Excited', 'Anxious', 'Grateful', 'Peaceful'],
-    correctEmotion: 'Anxious',
-    explanation:
-      'Anxiety often includes threat-focused thoughts and body activation. The signal here is uncertainty and a need for structure/safety.',
-  },
-  {
-    id: 'groupchat-1',
-    title: 'Friends Made Plans Without You',
-    situation:
-      'You saw pictures in the group chat from an outing you were not invited to. You feel a heavy ache and keep replaying it.',
-    options: ['Lonely', 'Rejected', 'Bored', 'Proud'],
-    correctEmotion: 'Rejected',
-    explanation:
-      'Lonely is missing connection in general, while rejected includes feeling specifically excluded or not chosen.',
-  },
-  {
-    id: 'exam-week-1',
-    title: 'Week 10 Exhaustion',
-    situation:
-      'For several weeks you have felt drained, detached from classes, and less effective despite trying harder.',
-    options: ['Overwhelmed', 'Burned out', 'Motivated', 'Calm'],
-    correctEmotion: 'Burned out',
-    explanation:
-      'Overwhelm is usually acute and short-term. Burnout is a prolonged pattern of depletion, detachment, and reduced effectiveness.',
-  },
-  {
-    id: 'presentation-1',
-    title: 'Nailed the Presentation',
-    situation:
-      'You just finished presenting to the class and got positive feedback. You feel a sense of relief mixed with pride.',
-    options: ['Grateful', 'Confident', 'Relieved', 'All of these'],
-    correctEmotion: 'All of these',
-    explanation:
-      'Complex emotions often blend. Relief (uncertainty resolved), confidence (capability), and gratitude (positive reception) can coexist in one moment.',
-  },
-];
+const DISCRIMINATION_EXERCISES: DiscriminationExercise[] = [];
 
-const BODY_SIGNAL_ACTIVITIES: BodySignalActivity[] = [
-  {
-    signal: 'Your chest feels tight; thoughts race to worst outcomes',
-    correctEmotions: ['Anxious', 'Fearful', 'Overwhelmed'],
-    incorrectEmotions: ['Joyful', 'Peaceful', 'Grateful'],
-  },
-  {
-    signal: 'Warmth in your chest, smiling without effort, lightness in your shoulders',
-    correctEmotions: ['Joyful', 'Grateful', 'Hopeful'],
-    incorrectEmotions: ['Sad', 'Angry', 'Fearful'],
-  },
-  {
-    signal: 'Heat rising, jaw clenched, urge to defend or respond',
-    correctEmotions: ['Angry', 'Frustrated', 'Irritated'],
-    incorrectEmotions: ['Peaceful', 'Calm', 'Content'],
-  },
-  {
-    signal: 'Heaviness in your chest, slow movements, withdrawal from activity',
-    correctEmotions: ['Sad', 'Melancholy', 'Disheartened'],
-    incorrectEmotions: ['Empowered', 'Determined', 'Confident'],
-  },
-];
 
-const REFLECTION_PROMPTS: ReflectionPromptActivity[] = [
-  {
-    prompt: 'When do you feel most peaceful?',
-    hints: [
-      'Think about a time when your body felt calm',
-      'What were you doing, and who was around?',
-      'What boundaries or conditions made that possible?',
-    ],
-    keyPoints: ['Identify your peace triggers', 'Recognize patterns', 'Protect those conditions'],
-  },
-  {
-    prompt: 'What does frustrated feel like in your body?',
-    hints: [
-      'Notice the physical sensations',
-      'What happened right before?',
-      'What boundary or need was crossed?',
-    ],
-    keyPoints: ['Body awareness improves emotional clarity', 'Frustration signals needs', 'Action often helps'],
-  },
-];
+const QUIZ_SCENARIOS: QuizScenario[] = [];
+
+
+const BODY_SIGNAL_ACTIVITIES: BodySignalActivity[] = [];
+
+
+const REFLECTION_PROMPTS: ReflectionPromptActivity[] = [];
 
 const QUIZ_PROGRESS_KEY = 'vocab_quiz_progress';
+const QUIZ_COMPLETE_KEY = 'vocab_quiz_complete';
 
 const INTENSITY_SCORE: Record<string, number> = {
   Low: 1,
@@ -268,38 +174,42 @@ export const VocabBuilder: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Learn tab states
+
   const [currentBodySignalIndex, setCurrentBodySignalIndex] = useState(0);
   const [bodySignalAnswers, setBodySignalAnswers] = useState<Record<string, string | null>>({});
   const [intensityChallengeAnswers, setIntensityChallengeAnswers] = useState<string[]>([]);
   const [currentReflectionIndex, setCurrentReflectionIndex] = useState(0);
   const [reflectionInputs, setReflectionInputs] = useState<Record<number, string>>({});
+  const [isSavingReflection, setIsSavingReflection] = useState(false);
 
-  // Practice tab states
+ 
   const [currentDiscriminationIndex, setCurrentDiscriminationIndex] = useState(0);
   const [discriminationAnswers, setDiscriminationAnswers] = useState<Record<string, string | null>>({});
   const [scenarioMatchStats, setScenarioMatchStats] = useState({ correct: 0, attempted: 0 });
 
-  // Quiz tab states
   const [currentScenarioIndex, setCurrentScenarioIndex] = useState(0);
   const [selectedScenarioOption, setSelectedScenarioOption] = useState<string | null>(null);
   const [showScenarioFeedback, setShowScenarioFeedback] = useState(false);
-  const [quizStats, setQuizStats] = useState<QuizStats>(() => {
+  const [quizComplete, setQuizComplete] = useState(() => {
     try {
-      const raw = localStorage.getItem(QUIZ_PROGRESS_KEY);
-      if (!raw) {
-        return { attempts: 0, correct: 0, lastPlayedAt: null };
-      }
-      const parsed = JSON.parse(raw) as QuizStats;
-      return {
-        attempts: parsed.attempts || 0,
-        correct: parsed.correct || 0,
-        lastPlayedAt: parsed.lastPlayedAt || null,
-      };
+      const raw = localStorage.getItem(QUIZ_COMPLETE_KEY);
+      return raw ? JSON.parse(raw) : false;
     } catch {
-      return { attempts: 0, correct: 0, lastPlayedAt: null };
+      return false;
     }
   });
+  const [quizStats, setQuizStats] = useState<QuizStats>({
+    attempts: 0,
+    correct: 0,
+    lastPlayedAt: null,
+  });
+
+ 
+  const [learningGuidesData, setLearningGuidesData] = useState<Record<string, LearningGuide>>({});
+  const [quizScenariosData, setQuizScenariosData] = useState<QuizScenario[]>([]);
+  const [discriminationExercisesData, setDiscriminationExercisesData] = useState<DiscriminationExercise[]>([]);
+  const [bodySignalActivitiesData, setBodySignalActivitiesData] = useState<BodySignalActivity[]>([]);
+  const [reflectionPromptsData, setReflectionPromptsData] = useState<ReflectionPromptActivity[]>([]);
 
   const categoryButtons = useMemo(
     () =>
@@ -318,13 +228,13 @@ export const VocabBuilder: React.FC = () => {
     });
   }, [emotionLibrary, searchQuery, activeCategory]);
 
-  const currentBodySignal = BODY_SIGNAL_ACTIVITIES[currentBodySignalIndex];
-  const currentReflectionPrompt = REFLECTION_PROMPTS[currentReflectionIndex];
-  const currentDiscrimation = DISCRIMINATION_EXERCISES[currentDiscriminationIndex];
-  const currentScenario = QUIZ_SCENARIOS[currentScenarioIndex];
+  const currentBodySignal = bodySignalActivitiesData[currentBodySignalIndex];
+  const currentReflectionPrompt = reflectionPromptsData[currentReflectionIndex];
+  const currentDiscrimation = discriminationExercisesData[currentDiscriminationIndex];
+  const currentScenario = quizScenariosData[currentScenarioIndex];
 
   const learningGuide = selectedWord
-    ? LEARNING_GUIDES[selectedWord.category] || LEARNING_GUIDES.Peaceful
+    ? learningGuidesData[selectedWord.category] || learningGuidesData['Peaceful']
     : null;
 
   const emotionLadderSuggestions = useMemo(() => {
@@ -355,6 +265,122 @@ export const VocabBuilder: React.FC = () => {
       }
     };
     loadCategories();
+  }, []);
+
+  useEffect(() => {
+    const loadInteractiveContent = async () => {
+      try {
+   
+        const guidesResponse = await fetch(`${API_BASE_URL}/vocab/learning-guides`);
+        if (guidesResponse.ok) {
+          const guides = (await guidesResponse.json()) as Array<{
+            id: number;
+            category: string;
+            body_signals: string[];
+            likely_triggers: string[];
+            signal_meaning: string;
+            underlying_needs: string[];
+            helpful_reactions: string[];
+            unhelpful_reactions: string[];
+            healthy_next_step: string;
+            reflection_prompt: string;
+          }>;
+          const guidesMap: Record<string, LearningGuide> = {};
+          guides.forEach((guide) => {
+            guidesMap[guide.category] = {
+              bodySignals: guide.body_signals,
+              likelyTriggers: guide.likely_triggers,
+              signalMeaning: guide.signal_meaning,
+              underlyingNeeds: guide.underlying_needs,
+              helpfulReactions: guide.helpful_reactions,
+              unhelpfulReactions: guide.unhelpful_reactions,
+              healthyNextStep: guide.healthy_next_step,
+              reflectionPrompt: guide.reflection_prompt,
+            };
+          });
+          setLearningGuidesData(guidesMap);
+        }
+
+       
+        const scenariosResponse = await fetch(`${API_BASE_URL}/vocab/quiz-scenarios`);
+        if (scenariosResponse.ok) {
+          const scenarios = (await scenariosResponse.json()) as Array<{
+            id: number;
+            scenario_id: string;
+            title: string;
+            situation: string;
+            options: string[];
+            correct_emotion: string;
+            explanation: string;
+          }>;
+          const scenariosWithId = scenarios.map((s) => ({
+            id: s.scenario_id,
+            title: s.title,
+            situation: s.situation,
+            options: s.options,
+            correctEmotion: s.correct_emotion,
+            explanation: s.explanation,
+          }));
+          setQuizScenariosData(scenariosWithId);
+        }
+
+        const exercisesResponse = await fetch(`${API_BASE_URL}/vocab/discrimination-exercises`);
+        if (exercisesResponse.ok) {
+          const exercises = (await exercisesResponse.json()) as Array<{
+            id: number;
+            left_emotion: string;
+            right_emotion: string;
+            key_difference: string;
+            quick_check: string;
+          }>;
+          const mappedExercises = exercises.map((e) => ({
+            leftEmotion: e.left_emotion,
+            rightEmotion: e.right_emotion,
+            keyDifference: e.key_difference,
+            quickCheck: e.quick_check,
+          }));
+          setDiscriminationExercisesData(mappedExercises);
+        }
+
+ 
+        const signalsResponse = await fetch(`${API_BASE_URL}/vocab/body-signal-activities`);
+        if (signalsResponse.ok) {
+          const signals = (await signalsResponse.json()) as Array<{
+            id: number;
+            signal: string;
+            correct_emotions: string[];
+            incorrect_emotions: string[];
+          }>;
+          const mappedSignals = signals.map((s) => ({
+            signal: s.signal,
+            correctEmotions: s.correct_emotions,
+            incorrectEmotions: s.incorrect_emotions,
+          }));
+          setBodySignalActivitiesData(mappedSignals);
+        }
+
+       
+        const promptsResponse = await fetch(`${API_BASE_URL}/vocab/reflection-prompts`);
+        if (promptsResponse.ok) {
+          const prompts = (await promptsResponse.json()) as Array<{
+            id: number;
+            prompt: string;
+            hints: string[];
+            key_points: string[];
+          }>;
+          const mappedPrompts = prompts.map((p) => ({
+            prompt: p.prompt,
+            hints: p.hints,
+            keyPoints: p.key_points,
+          }));
+          setReflectionPromptsData(mappedPrompts);
+        }
+      } catch (err) {
+        console.error('Error loading interactive content:', err);
+      }
+    };
+
+    loadInteractiveContent();
   }, []);
 
   useEffect(() => {
@@ -424,19 +450,26 @@ export const VocabBuilder: React.FC = () => {
     setSelectedScenarioOption(option);
     setShowScenarioFeedback(true);
     setQuizStats(updatedStats);
-    localStorage.setItem(QUIZ_PROGRESS_KEY, JSON.stringify(updatedStats));
   };
 
   const moveToNextScenario = () => {
-    setCurrentScenarioIndex((index) => (index + 1) % QUIZ_SCENARIOS.length);
-    setSelectedScenarioOption(null);
-    setShowScenarioFeedback(false);
+    if (quizScenariosData.length > 0) {
+      if (currentScenarioIndex < quizScenariosData.length - 1) {
+        setCurrentScenarioIndex(currentScenarioIndex + 1);
+        setSelectedScenarioOption(null);
+        setShowScenarioFeedback(false);
+      } else {
+        // Quiz is complete - don't move to next
+        setQuizComplete(true);
+        localStorage.setItem(QUIZ_COMPLETE_KEY, JSON.stringify(true));
+      }
+    }
   };
 
   const bodySignalCorrectCount = Object.keys(bodySignalAnswers).filter(
     (k) => {
       const idx = parseInt(k.split('-')[2]);
-      const activity = BODY_SIGNAL_ACTIVITIES[idx];
+      const activity = bodySignalActivitiesData[idx];
       return activity && bodySignalAnswers[k] && activity.correctEmotions.includes(bodySignalAnswers[k]!);
     }
   ).length;
@@ -447,11 +480,16 @@ export const VocabBuilder: React.FC = () => {
   };
 
   const moveToNextBodySignal = () => {
-    if (currentBodySignalIndex < BODY_SIGNAL_ACTIVITIES.length - 1) {
+    if (currentBodySignalIndex < bodySignalActivitiesData.length - 1) {
       setCurrentBodySignalIndex(currentBodySignalIndex + 1);
     } else {
       setCurrentBodySignalIndex(0);
     }
+  };
+
+  const restartBodySignalExercises = () => {
+    setCurrentBodySignalIndex(0);
+    setBodySignalAnswers({});
   };
 
   const handleDiscriminationAnswer = (answer: string) => {
@@ -460,10 +498,62 @@ export const VocabBuilder: React.FC = () => {
   };
 
   const moveToNextDiscrimination = () => {
-    if (currentDiscriminationIndex < DISCRIMINATION_EXERCISES.length - 1) {
-      setCurrentDiscriminationIndex(currentDiscriminationIndex + 1);
-    } else {
-      setCurrentDiscriminationIndex(0);
+    if (discriminationExercisesData.length > 0) {
+      if (currentDiscriminationIndex < discriminationExercisesData.length - 1) {
+        setCurrentDiscriminationIndex(currentDiscriminationIndex + 1);
+      } else {
+        setCurrentDiscriminationIndex(0);
+      }
+    }
+  };
+
+  const saveReflectionToPractice = async () => {
+
+    const reflectionContent = reflectionInputs[currentReflectionIndex] || '';
+    if (!reflectionContent.trim()) {
+      toast.error('Please write something before saving.');
+      return;
+    }
+
+    
+    const AUTH_TOKEN_KEY = 'auth_token';
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (!token) {
+      toast.error('You must be logged in to save reflections.');
+      return;
+    }
+
+    setIsSavingReflection(true);
+
+    try {
+      const reflectionData = {
+        title: `Practice: ${currentReflectionPrompt?.prompt || 'Reflection'}`,
+        content: reflectionContent,
+        mood: 'Calm',
+        tags: ['practice'],
+      };
+
+      const response = await fetch(`${API_BASE_URL}/reflections`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(reflectionData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save reflection');
+      }
+
+      toast.success('Reflection saved to your journal!');
+      
+      setReflectionInputs({ ...reflectionInputs, [currentReflectionIndex]: '' });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save reflection';
+      toast.error(errorMessage);
+    } finally {
+      setIsSavingReflection(false);
     }
   };
 
@@ -694,6 +784,8 @@ export const VocabBuilder: React.FC = () => {
                 </p>
               </div>
 
+              {bodySignalActivitiesData.length > 0 && currentBodySignal ? (
+                <>
               <div className="rounded-2xl border border-amber-100 dark:border-amber-900/40 bg-amber-50/80 dark:bg-amber-900/20 p-5 space-y-3">
                 <p className="text-sm font-bold text-amber-900 dark:text-amber-200">Signal: "{currentBodySignal.signal}"</p>
                 <p className="text-xs text-amber-800/70 dark:text-amber-300/70">Which emotions might you feel?</p>
@@ -730,10 +822,17 @@ export const VocabBuilder: React.FC = () => {
               </div>
 
               <button
-                onClick={moveToNextBodySignal}
-                className="w-full py-3 bg-teal-600 dark:bg-teal-700 hover:bg-teal-700 dark:hover:bg-teal-800 text-white font-bold rounded-2xl transition-colors"
+                onClick={currentBodySignalIndex === bodySignalActivitiesData.length - 1 && bodySignalAnswers[`body-signal-${currentBodySignalIndex}`] ? restartBodySignalExercises : moveToNextBodySignal}
+                disabled={bodySignalActivitiesData.length === 0}
+                className="w-full py-3 bg-teal-600 dark:bg-teal-700 hover:bg-teal-700 dark:hover:bg-teal-800 text-white font-bold rounded-2xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Next Signal ({currentBodySignalIndex + 1}/{BODY_SIGNAL_ACTIVITIES.length})
+                {bodySignalActivitiesData.length > 0 ? (
+                  currentBodySignalIndex === bodySignalActivitiesData.length - 1 && bodySignalAnswers[`body-signal-${currentBodySignalIndex}`]
+                    ? 'Restart Exercises'
+                    : `Next Signal (${currentBodySignalIndex + 1}/${bodySignalActivitiesData.length})`
+                ) : (
+                  'Loading signals...'
+                )}
               </button>
 
               <div className="text-center">
@@ -741,6 +840,12 @@ export const VocabBuilder: React.FC = () => {
                   Correct: {bodySignalCorrectCount}/{currentBodySignalIndex + 1}
                 </p>
               </div>
+                </>
+              ) : (
+                <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 p-5">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Loading body signals...</p>
+                </div>
+              )}
             </div>
 
             {/* Learning Guide for Selected Word */}
@@ -821,25 +926,34 @@ export const VocabBuilder: React.FC = () => {
               </div>
 
               <div className="space-y-4">
-                <div className="rounded-2xl border border-blue-100 dark:border-blue-900/40 bg-blue-50/80 dark:bg-blue-900/20 p-5">
-                  <p className="text-sm font-bold text-blue-900 dark:text-blue-200 mb-2">
-                    {currentDiscrimation.leftEmotion} <span className="text-gray-500 mx-2">vs</span> {currentDiscrimation.rightEmotion}
-                  </p>
-                  <p className="text-xs text-blue-900/70 dark:text-blue-300/70">{currentDiscrimation.keyDifference}</p>
-                </div>
+                {discriminationExercisesData.length > 0 && currentDiscrimation ? (
+                  <>
+                    <div className="rounded-2xl border border-blue-100 dark:border-blue-900/40 bg-blue-50/80 dark:bg-blue-900/20 p-5">
+                      <p className="text-sm font-bold text-blue-900 dark:text-blue-200 mb-2">
+                        {currentDiscrimation.leftEmotion} <span className="text-gray-500 mx-2">vs</span> {currentDiscrimation.rightEmotion}
+                      </p>
+                      <p className="text-xs text-blue-900/70 dark:text-blue-300/70">{currentDiscrimation.keyDifference}</p>
+                    </div>
 
-                <div className="rounded-2xl border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/80 dark:bg-indigo-900/20 p-4">
-                  <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
-                    <Lightbulb size={14} className="inline mr-1" />
-                    {currentDiscrimation.quickCheck}
-                  </p>
-                </div>
+                    <div className="rounded-2xl border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/80 dark:bg-indigo-900/20 p-4">
+                      <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                        <Lightbulb size={14} className="inline mr-1" />
+                        {currentDiscrimation.quickCheck}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 p-5">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Loading discrimination exercises...</p>
+                  </div>
+                )}
 
                 <button
                   onClick={moveToNextDiscrimination}
-                  className="w-full py-3 bg-teal-600 dark:bg-teal-700 hover:bg-teal-700 dark:hover:bg-teal-800 text-white font-bold rounded-2xl transition-colors"
+                  disabled={discriminationExercisesData.length === 0}
+                  className="w-full py-3 bg-teal-600 dark:bg-teal-700 hover:bg-teal-700 dark:hover:bg-teal-800 text-white font-bold rounded-2xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Next Exercise ({currentDiscriminationIndex + 1}/{DISCRIMINATION_EXERCISES.length})
+                  {discriminationExercisesData.length > 0 ? `Next Exercise (${currentDiscriminationIndex + 1}/${discriminationExercisesData.length})` : 'Loading exercises...'}
                 </button>
               </div>
             </div>
@@ -854,39 +968,58 @@ export const VocabBuilder: React.FC = () => {
               </div>
 
               <div className="space-y-4">
-                <div className="rounded-2xl border border-purple-100 dark:border-purple-900/40 bg-purple-50/80 dark:bg-purple-900/20 p-5">
-                  <p className="text-sm font-bold text-purple-900 dark:text-purple-200">"{currentReflectionPrompt.prompt}"</p>
-                </div>
-
-                <textarea
-                  placeholder="Write your reflection here..."
-                  value={reflectionInputs[currentReflectionIndex] || ''}
-                  onChange={(e) =>
-                    setReflectionInputs({ ...reflectionInputs, [currentReflectionIndex]: e.target.value })
-                  }
-                  className="w-full p-4 h-32 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/40 text-gray-900 dark:text-gray-100 resize-none focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                />
-
-                <div className="space-y-2">
-                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Hints:</p>
-                  {currentReflectionPrompt.hints.map((hint) => (
-                    <div key={hint} className="p-2 rounded-xl bg-gray-50 dark:bg-gray-900/30 text-xs text-gray-600 dark:text-gray-400">
-                      💡 {hint}
+                {reflectionPromptsData.length > 0 && currentReflectionPrompt ? (
+                  <>
+                    <div className="rounded-2xl border border-purple-100 dark:border-purple-900/40 bg-purple-50/80 dark:bg-purple-900/20 p-5">
+                      <p className="text-sm font-bold text-purple-900 dark:text-purple-200">"{currentReflectionPrompt.prompt}"</p>
                     </div>
-                  ))}
-                </div>
+
+                    <textarea
+                      placeholder="Write your reflection here..."
+                      value={reflectionInputs[currentReflectionIndex] || ''}
+                      onChange={(e) =>
+                        setReflectionInputs({ ...reflectionInputs, [currentReflectionIndex]: e.target.value })
+                      }
+                      className="w-full p-4 h-32 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/40 text-gray-900 dark:text-gray-100 resize-none focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                    />
+
+                    <div className="space-y-2">
+                      <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Hints:</p>
+                      {currentReflectionPrompt.hints.map((hint) => (
+                        <div key={hint} className="p-2 rounded-xl bg-gray-50 dark:bg-gray-900/30 text-xs text-gray-600 dark:text-gray-400">
+                           {hint}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 p-5">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Loading reflection prompts...</p>
+                  </div>
+                )}
+
+                <button
+                  onClick={saveReflectionToPractice}
+                  disabled={isSavingReflection || !reflectionInputs[currentReflectionIndex]?.trim()}
+                  className="w-full py-3 bg-purple-600 dark:bg-purple-700 hover:bg-purple-700 dark:hover:bg-purple-800 text-white font-bold rounded-2xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSavingReflection ? 'Saving...' : 'Save to Reflections'}
+                </button>
 
                 <button
                   onClick={() => {
-                    if (currentReflectionIndex < REFLECTION_PROMPTS.length - 1) {
-                      setCurrentReflectionIndex(currentReflectionIndex + 1);
-                    } else {
-                      setCurrentReflectionIndex(0);
+                    if (reflectionPromptsData.length > 0) {
+                      if (currentReflectionIndex < reflectionPromptsData.length - 1) {
+                        setCurrentReflectionIndex(currentReflectionIndex + 1);
+                      } else {
+                        setCurrentReflectionIndex(0);
+                      }
                     }
                   }}
-                  className="w-full py-3 bg-teal-600 dark:bg-teal-700 hover:bg-teal-700 dark:hover:bg-teal-800 text-white font-bold rounded-2xl transition-colors"
+                  disabled={reflectionPromptsData.length === 0}
+                  className="w-full py-3 bg-teal-600 dark:bg-teal-700 hover:bg-teal-700 dark:hover:bg-teal-800 text-white font-bold rounded-2xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Next Prompt ({currentReflectionIndex + 1}/{REFLECTION_PROMPTS.length})
+                  {reflectionPromptsData.length > 0 ? `Next Prompt (${currentReflectionIndex + 1}/${reflectionPromptsData.length})` : 'Loading prompts...'}
                 </button>
               </div>
             </div>
@@ -910,65 +1043,101 @@ export const VocabBuilder: React.FC = () => {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-900/30 p-5">
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2">
-                {currentScenario.title}
-              </p>
-              <p className="text-gray-800 dark:text-gray-200 leading-relaxed">{currentScenario.situation}</p>
-            </div>
+            {quizScenariosData.length > 0 && currentScenario ? (
+              <>
+                <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-900/30 p-5">
+                  <p className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2">
+                    {currentScenario.title}
+                  </p>
+                  <p className="text-gray-800 dark:text-gray-200 leading-relaxed">{currentScenario.situation}</p>
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {currentScenario.options.map((option) => {
-                const isSelected = selectedScenarioOption === option;
-                const isCorrectOption = option === currentScenario.correctEmotion;
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {currentScenario.options.map((option) => {
+                    const isSelected = selectedScenarioOption === option;
+                    const isCorrectOption = option === currentScenario.correctEmotion;
 
-                let optionStyle = 'bg-white dark:bg-gray-900/40 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300';
-                if (showScenarioFeedback && isCorrectOption) {
-                  optionStyle = 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300';
-                } else if (showScenarioFeedback && isSelected && !isCorrectOption) {
-                  optionStyle = 'bg-rose-50 dark:bg-rose-900/20 border-rose-300 dark:border-rose-700 text-rose-800 dark:text-rose-300';
-                } else if (isSelected) {
-                  optionStyle = 'bg-teal-50 dark:bg-teal-900/20 border-teal-300 dark:border-teal-700 text-teal-800 dark:text-teal-300';
-                }
+                    let optionStyle = 'bg-white dark:bg-gray-900/40 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300';
+                    if (showScenarioFeedback && isCorrectOption) {
+                      optionStyle = 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300';
+                    } else if (showScenarioFeedback && isSelected && !isCorrectOption) {
+                      optionStyle = 'bg-rose-50 dark:bg-rose-900/20 border-rose-300 dark:border-rose-700 text-rose-800 dark:text-rose-300';
+                    } else if (isSelected) {
+                      optionStyle = 'bg-teal-50 dark:bg-teal-900/20 border-teal-300 dark:border-teal-700 text-teal-800 dark:text-teal-300';
+                    }
 
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => handleScenarioChoice(option)}
-                    className={`p-4 rounded-xl border text-left font-semibold transition-all ${optionStyle}`}
-                    disabled={showScenarioFeedback}
-                  >
-                    {option}
-                  </button>
-                );
-              })}
-            </div>
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => handleScenarioChoice(option)}
+                        className={`p-4 rounded-xl border text-left font-semibold transition-all ${optionStyle}`}
+                        disabled={showScenarioFeedback}
+                      >
+                        {option}
+                      </button>
+                    );
+                  })}
+                </div>
 
-            {showScenarioFeedback && (
-              <div className="rounded-2xl border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/80 dark:bg-indigo-900/20 p-5 space-y-2">
-                <p className="text-sm font-bold text-indigo-800 dark:text-indigo-300">
-                  {selectedScenarioOption === currentScenario.correctEmotion
-                    ? '✓ Correct!'
-                    : `Best fit: ${currentScenario.correctEmotion}`}
-                </p>
-                <p className="text-sm text-indigo-900/80 dark:text-indigo-200">{currentScenario.explanation}</p>
+                {showScenarioFeedback && (
+                  <div className="rounded-2xl border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/80 dark:bg-indigo-900/20 p-5 space-y-2">
+                    <p className="text-sm font-bold text-indigo-800 dark:text-indigo-300">
+                      {selectedScenarioOption === currentScenario.correctEmotion
+                        ? '✓ Correct!'
+                        : `Best fit: ${currentScenario.correctEmotion}`}
+                    </p>
+                    <p className="text-sm text-indigo-900/80 dark:text-indigo-200">{currentScenario.explanation}</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 p-5">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Loading quiz scenarios...</p>
               </div>
             )}
 
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {quizStats.lastPlayedAt
-                  ? `Last played: ${new Date(quizStats.lastPlayedAt).toLocaleString()}`
-                  : 'Start your first scenario challenge.'}
-              </p>
-              <button
-                type="button"
-                onClick={moveToNextScenario}
-                className="px-5 py-2.5 bg-gray-900 dark:bg-gray-700 text-white font-bold rounded-xl hover:bg-black dark:hover:bg-gray-600 transition-colors text-sm"
-              >
-                Next Scenario
-              </button>
+              {quizComplete ? (
+                <div className="flex-1">
+                  <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-900/20 p-5">
+                    <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300 mb-2">
+                       Quiz Complete!
+                    </p>
+                    <p className="text-sm text-emerald-700 dark:text-emerald-400 mb-4">
+                      You've completed all {quizScenariosData.length} scenarios. Final score: {quizStats.correct}/{quizStats.attempts} ({quizAccuracy}%)
+                    </p>
+                    <button
+                      onClick={() => {
+                        setCurrentScenarioIndex(0);
+                        setQuizComplete(false);
+                        localStorage.setItem(QUIZ_COMPLETE_KEY, JSON.stringify(false));
+                        setSelectedScenarioOption(null);
+                        setShowScenarioFeedback(false);
+                        setQuizStats({ attempts: 0, correct: 0, lastPlayedAt: null });
+                      }}
+                      className="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors text-sm"
+                    >
+                      Restart Quiz
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {quizStats.lastPlayedAt
+                      ? `Last played: ${new Date(quizStats.lastPlayedAt).toLocaleString()}`
+                      : 'Start your first scenario challenge.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={moveToNextScenario}
+                    className="px-5 py-2.5 bg-gray-900 dark:bg-gray-700 text-white font-bold rounded-xl hover:bg-black dark:hover:bg-gray-600 transition-colors text-sm"
+                  >
+                    {currentScenarioIndex >= quizScenariosData.length - 1 && showScenarioFeedback ? 'Complete Quiz' : 'Next Scenario'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </motion.div>

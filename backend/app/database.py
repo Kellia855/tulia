@@ -6,7 +6,20 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./tulia.db")
+
+db_path = os.path.join(os.path.dirname(__file__), "..", "tulia.db")
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{db_path}")
+
+
+if SQLALCHEMY_DATABASE_URL.startswith("postgresql://"):
+    try:
+        import psycopg 
+
+        SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace(
+            "postgresql://", "postgresql+psycopg://", 1
+        )
+    except ImportError:
+        pass
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, 
@@ -17,7 +30,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
-# Dependency to get DB session
+
 def get_db():
     db = SessionLocal()
     try:

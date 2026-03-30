@@ -1,8 +1,11 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 from typing import Dict, List, Optional
 from urllib import parse, request
 import json
 import time
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app import models, schemas
 
 router = APIRouter()
 
@@ -169,7 +172,7 @@ def _fetch_dictionary_definition(word: str) -> Optional[str]:
 
 
 def _attach_dictionary_definitions(items: List[dict], query: str) -> List[dict]:
-    # Keep external calls bounded for performance.
+  
     max_lookups = 15
     lookups = 0
 
@@ -237,3 +240,48 @@ def search_vocab(
                 break
 
     return {"items": results, "count": len(results)}
+
+
+
+@router.get("/learning-guides")
+def list_learning_guides(db: Session = Depends(get_db)):
+    """Get all learning guides for emotion categories"""
+    guides = db.query(models.LearningGuide).all()
+    return [schemas.LearningGuideResponse.model_validate(guide) for guide in guides]
+
+
+@router.get("/learning-guides/{category}")
+def get_learning_guide(category: str, db: Session = Depends(get_db)):
+    """Get learning guide for a specific emotion category"""
+    guide = db.query(models.LearningGuide).filter(models.LearningGuide.category == category).first()
+    if not guide:
+        return {}
+    return schemas.LearningGuideResponse.model_validate(guide)
+
+
+@router.get("/quiz-scenarios")
+def list_quiz_scenarios(db: Session = Depends(get_db)):
+    """Get all quiz scenarios"""
+    scenarios = db.query(models.QuizScenario).all()
+    return [schemas.QuizScenarioResponse.model_validate(scenario) for scenario in scenarios]
+
+
+@router.get("/discrimination-exercises")
+def list_discrimination_exercises(db: Session = Depends(get_db)):
+    """Get all discrimination exercises"""
+    exercises = db.query(models.DiscriminationExercise).all()
+    return [schemas.DiscriminationExerciseResponse.model_validate(exercise) for exercise in exercises]
+
+
+@router.get("/body-signal-activities")
+def list_body_signal_activities(db: Session = Depends(get_db)):
+    """Get all body signal activities"""
+    activities = db.query(models.BodySignalActivity).all()
+    return [schemas.BodySignalActivityResponse.model_validate(activity) for activity in activities]
+
+
+@router.get("/reflection-prompts")
+def list_reflection_prompts(db: Session = Depends(get_db)):
+    """Get all reflection prompt activities"""
+    prompts = db.query(models.ReflectionPromptActivity).all()
+    return [schemas.ReflectionPromptActivityResponse.model_validate(prompt) for prompt in prompts]

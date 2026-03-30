@@ -52,16 +52,16 @@ print(secrets.token_urlsafe(32))
 uvicorn main:app --reload
 
 # Production mode
-uvicorn main:app --host 0.0.0.0 --port 8000
+uvicorn main:app --host 0.0.0.0 --port 8001
 ```
 
-Server will start at: `http://localhost:8000`
+Server will start at: `http://localhost:8001`
 
 ## API Documentation
 
 Once running, visit:
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+- **Swagger UI**: http://localhost:8001/docs
+- **ReDoc**: http://localhost:8001/redoc
 
 ## Endpoints
 
@@ -89,7 +89,7 @@ Default: SQLite (`tulia.db`)
 
 For PostgreSQL, update DATABASE_URL in `.env`:
 ```
-DATABASE_URL=postgresql://user:password@localhost/tulia
+DATABASE_URL=postgresql+psycopg://user:password@localhost/tulia
 ```
 
 ## Security

@@ -3,6 +3,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { TrendingUp, Smile, CloudRain, Zap, Heart, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface CheckIn {
   id: number;
@@ -47,6 +48,7 @@ export const Dashboard: React.FC = () => {
   const [checkInCount, setCheckInCount] = useState<number>(0);
   const [primaryEmotion, setPrimaryEmotion] = useState<string>('--');
   const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState<7 | 30>(7);
 
   useEffect(() => {
     const fetchCheckInData = async () => {
@@ -69,24 +71,24 @@ export const Dashboard: React.FC = () => {
 
         const checkIns: CheckIn[] = await response.json();
         
-        // Process check-in data
-        processCheckInData(checkIns);
+        processCheckInData(checkIns, timeRange);
       } catch (error) {
         console.error('Error fetching check-ins:', error);
-        // Keep default empty state on error
+        
       } finally {
         setLoading(false);
       }
     };
 
     fetchCheckInData();
-  }, []);
+  }, [timeRange]);
 
-  const processCheckInData = (checkIns: CheckIn[]) => {
-    // Get last 7 days
-    const last7Days = getLast7Days();
+
+  const processCheckInData = (checkIns: CheckIn[], days: number) => {
     
-    // Group check-ins by day
+    const lastDays = getLastDays(days);
+    
+    
     const dataByDay = new Map<string, { moods: number[]; energies: number[] }>();
     checkIns.forEach((checkin) => {
       const date = new Date(checkin.created_at);
@@ -101,8 +103,8 @@ export const Dashboard: React.FC = () => {
       dayData.energies.push(checkin.energy);
     });
 
-    // Build mood trend data for last 7 days
-    const moodTrend = last7Days.map((dayObj) => {
+   
+    const moodTrend = lastDays.map((dayObj) => {
       const data = dataByDay.get(dayObj.key);
       const mood = data ? Math.round(data.moods.reduce((a, b) => a + b, 0) / data.moods.length) : 0;
       const energy = data ? Math.round(data.energies.reduce((a, b) => a + b, 0) / data.energies.length) : 0;
@@ -117,13 +119,13 @@ export const Dashboard: React.FC = () => {
     setMoodData(moodTrend);
     setCheckInCount(checkIns.length);
 
-    // Calculate average mood
+   
     if (checkIns.length > 0) {
       const avgMood = checkIns.reduce((sum, c) => sum + c.mood, 0) / checkIns.length;
       setAverageMood(getMoodLabel(avgMood));
     }
 
-    // Calculate emotion distribution
+   
     const emotionCount = new Map<string, number>();
     checkIns.forEach((checkin) => {
       checkin.emotions.forEach((emotion) => {
@@ -131,7 +133,7 @@ export const Dashboard: React.FC = () => {
       });
     });
 
-    // Convert to array and sort by count
+    
     const emotions = Array.from(emotionCount.entries())
       .map(([name, count]) => ({
         name,
@@ -147,16 +149,17 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const getLast7Days = () => {
+  const getLastDays = (numDays: number) => {
     const days = [];
     const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     
-    for (let i = 6; i >= 0; i--) {
+    for (let i = numDays - 1; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
+      const label = numDays === 7 ? dayLabels[date.getDay()] : `${date.getMonth() + 1}/${date.getDate()}`;
       days.push({
         key: getDayKey(date),
-        label: dayLabels[date.getDay()],
+        label,
       });
     }
     
@@ -178,10 +181,36 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-8">
       <header>
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-          Welcome back, {user?.username}
-        </h2>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">Your emotional journey over the last 7 days.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+              Welcome back, {user?.username}
+            </h2>
+            <p className="text-gray-500 dark:text-gray-400 mt-1">Your emotional journey over the last {timeRange} days.</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setTimeRange(7)}
+              className={`px-4 py-2 rounded-xl font-semibold transition-colors ${
+                timeRange === 7
+                  ? 'bg-teal-600 text-white'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+              }`}
+            >
+              7 Days
+            </button>
+            <button
+              onClick={() => setTimeRange(30)}
+              className={`px-4 py-2 rounded-xl font-semibold transition-colors ${
+                timeRange === 30
+                  ? 'bg-teal-600 text-white'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+              }`}
+            >
+              30 Days
+            </button>
+          </div>
+        </div>
       </header>
 
       {/* Quick Stats */}
@@ -200,7 +229,7 @@ export const Dashboard: React.FC = () => {
             <TrendingUp size={24} />
           </div>
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Weekly Check-ins</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{timeRange}-Day Check-ins</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{loading ? '--' : `${checkInCount} entries`}</p>
           </div>
         </div>

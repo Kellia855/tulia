@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from datetime import timedelta
+from sqlalchemy import func
+from datetime import timedelta, datetime
 
 from app.database import get_db
-from app.models import User
-from app.schemas import AuthResponse, UserCreate, UserLogin, UserResponse
+from app.models import User, CheckIn, Reflection
+from app.schemas import AuthResponse, UserCreate, UserLogin, UserResponse, PasswordChange
 from app.auth import (
     get_password_hash,
     authenticate_user,
@@ -32,8 +33,8 @@ def build_auth_response(user: User) -> AuthResponse:
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 def register(user: UserCreate, db: Session = Depends(get_db)):
-    """Register a new user"""
-    # Check if username already exists
+    """Register a new user or check if already used"""
+    
     db_user = get_user_by_username(db, username=user.username)
     if db_user:
         raise HTTPException(
@@ -41,7 +42,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
             detail="Username already registered"
         )
     
-    # Create new user
+
     hashed_password = get_password_hash(user.password)
     new_user = User(
         username=user.username,
@@ -66,7 +67,7 @@ def login(
     credentials: UserLogin,
     db: Session = Depends(get_db)
 ):
-    """Login user and return access token"""
+
     user = authenticate_user(db, credentials.username, credentials.password)
     if not user:
         raise HTTPException(
@@ -75,10 +76,46 @@ def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Update last login timestamp
+    user.last_login = datetime.utcnow()
+    db.commit()
+    db.refresh(user)
+
     return build_auth_response(user)
 
 
 @router.get("/me", response_model=UserResponse)
 def read_users_me(current_user: User = Depends(get_current_user)):
-    """Get current user information"""
+   
     return current_user
+
+
+@router.post("/change-password", status_code=status.HTTP_200_OK)
+def change_password(
+    password_change: PasswordChange,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Change the current user's password"""
+    
+    # Verify current password is correct
+    from app.auth import verify_password
+    if not verify_password(password_change.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Current password is incorrect"
+        )
+    
+    # Check if new password is different from current password
+    if verify_password(password_change.new_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from current password"
+        )
+    
+    # Update password
+    current_user.hashed_password = get_password_hash(password_change.new_password)
+    db.add(current_user)
+    db.commit()
+    
+    return {"message": "Password changed successfully"}
