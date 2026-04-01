@@ -25,7 +25,10 @@ export const AccountSettings: React.FC = () => {
 
   const fetchProfile = async () => {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001/api';
+      const isProduction = window.location.hostname === 'tulia-dpza.onrender.com';
+      const apiUrl = isProduction 
+        ? 'https://tulia-2bt9.onrender.com/api'
+        : 'http://localhost:8001/api';
       const response = await fetch(`${apiUrl}/auth/me`, {
         credentials: 'include',
         headers: {
