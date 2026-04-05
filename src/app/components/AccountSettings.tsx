@@ -25,7 +25,7 @@ export const AccountSettings: React.FC = () => {
 
   const fetchProfile = async () => {
     try {
-      const isProduction = window.location.hostname === 'tulia-dpza.onrender.com';
+      const isProduction = window.location.hostname.includes('onrender.com');
       const apiUrl = isProduction 
         ? 'https://tulia-2bt9.onrender.com/api'
         : 'http://localhost:8001/api';
