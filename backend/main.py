@@ -287,3 +287,25 @@ def get_schema():
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+@app.get("/api/debug/token-test")
+def test_token(token: str):
+   
+    try:
+        from app.auth import SECRET_KEY, ALGORITHM
+        from jose import jwt
+        
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return {
+            "status": "valid",
+            "payload": payload,
+            "secret_key_present": bool(SECRET_KEY),
+            "algorithm": ALGORITHM
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e),
+            "secret_key_present": bool(SECRET_KEY),
+            "algorithm": ALGORITHM
+        }
