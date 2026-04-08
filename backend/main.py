@@ -268,3 +268,22 @@ def seed_database():
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+@app.get("/api/debug/schema")
+def get_schema():
+    
+    try:
+        from sqlalchemy import inspect
+        inspector = inspect(engine)
+        
+        users_columns = inspector.get_columns('users')
+        column_names = [col['name'] for col in users_columns]
+        
+        return {
+            "table": "users",
+            "columns": column_names,
+            "has_created_at": "created_at" in column_names,
+            "has_last_login": "last_login" in column_names
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
