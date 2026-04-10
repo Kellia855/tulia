@@ -8,7 +8,6 @@ build/
 # Environment files
 .env
 .env.*
-!.env.example
 
 # Python virtual environments
 venv/
