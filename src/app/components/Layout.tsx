@@ -9,13 +9,16 @@ import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
 import logo from '../../images/logo.png';
 
-  const envApiUrl = (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_API_URL;
-  const API_BASE_URL = envApiUrl || 'http://localhost:8001/api';
+interface UserProfile {
+  id: number;
+  username: string;
   created_at: string;
   last_login?: string | null;
 }
 
 export const Layout: React.FC = () => {
+  const envApiUrl = (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_API_URL;
+  const API_BASE_URL = envApiUrl || 'http://localhost:8001/api';
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
   const [showAccountModal, setShowAccountModal] = React.useState(false);
