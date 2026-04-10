@@ -23,12 +23,12 @@ export const AccountSettings: React.FC = () => {
   const [deleteConfirmation, setDeleteConfirmation] = React.useState('');
   const [activeSection, setActiveSection] = React.useState<SettingsSection>('account');
 
+  const envApiUrl = (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_API_URL;
+  const apiUrl = envApiUrl || 'http://localhost:8001/api';
+
   const fetchProfile = async () => {
     try {
-      const isProduction = window.location.hostname.includes('onrender.com');
-      const apiUrl = isProduction 
-        ? 'https://tulia-2bt9.onrender.com/api'
-        : 'http://localhost:8001/api';
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`${apiUrl}/auth/me`, {
         credentials: 'include',
         headers: {
@@ -258,7 +258,7 @@ export const AccountSettings: React.FC = () => {
 
                   setIsDeleting(true);
                   try {
-                    const response = await fetch('http://localhost:8001/api/auth/account', {
+                    const response = await fetch(`${apiUrl}/auth/account`, {
                       method: 'DELETE',
                       credentials: 'include',
                       headers: {

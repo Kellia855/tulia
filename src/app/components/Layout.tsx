@@ -9,9 +9,8 @@ import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
 import logo from '../../images/logo.png';
 
-interface UserProfile {
-  id: number;
-  username: string;
+  const envApiUrl = (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_API_URL;
+  const API_BASE_URL = envApiUrl || 'http://localhost:8001/api';
   created_at: string;
   last_login?: string | null;
 }
@@ -49,7 +48,7 @@ export const Layout: React.FC = () => {
     if (!profile) {
       setIsLoadingProfile(true);
       try {
-        const response = await fetch('http://localhost:8001/api/auth/me', {
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
           credentials: 'include',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
@@ -484,7 +483,7 @@ export const Layout: React.FC = () => {
 
                   setIsDeleting(true);
                   try {
-                    const response = await fetch('http://localhost:8001/api/auth/account', {
+                    const response = await fetch(`${API_BASE_URL}/auth/account`, {
                       method: 'DELETE',
                       credentials: 'include',
                       headers: {
@@ -649,7 +648,7 @@ export const Layout: React.FC = () => {
                   
                   setIsChangingPassword(true);
                   try {
-                    const response = await fetch('http://localhost:8001/api/auth/change-password', {
+                    const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
                       method: 'POST',
                       credentials: 'include',
                       headers: {
