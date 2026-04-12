@@ -106,6 +106,8 @@ tulia/
 
 ## Development Setup
 
+**Note:** The `localhost` URLs below only work when you're running the backend and frontend on your local machine. Both servers must be running simultaneously.
+
 ### Prerequisites
 - Node.js 16+
 - Python 3.9+
@@ -148,6 +150,8 @@ tulia/
    - Data persists between sessions
    - To reset: delete `backend/tulia.db` and restart backend
 
+**Important:** Both backend and frontend must be running for `localhost` URLs to work. If you stop either server, you'll get connection errors.
+
 ### Windows Quick Start
 
 If your VS Code terminal occasionally loses Node.js on PATH, use:
@@ -160,11 +164,11 @@ This script refreshes PATH, activates `.venv`, installs dependencies and starts 
 
 ## API Documentation
 
-Once backend is running, visit:
+Once backend is running locally, visit:
 - **Swagger UI:** http://localhost:8001/docs
 - **ReDoc:** http://localhost:8001/redoc
 
-See [backend/README.md](backend/README.md) for detailed backend setup.
+*Note: These URLs only work when the backend is running on your local machine. See [backend/README.md](backend/README.md) for detailed setup.*
 
 ## Deployment
 
